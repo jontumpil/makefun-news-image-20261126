@@ -31,7 +31,12 @@ def main(argv=None):
                         help="output PNG path (default: entry.png)")
     args = parser.parse_args(argv)
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    out = draw_frontpage.build_entry(base_dir, args.out)
+    out_arg = args.out
+    if not os.path.isabs(out_arg):
+        out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+        os.makedirs(out_dir, exist_ok=True)
+        out_arg = os.path.join(out_dir, out_arg)
+    out = draw_frontpage.build_entry(base_dir, out_arg)
     size = os.path.getsize(os.path.join(base_dir, out))
     print("wrote %s (%d bytes)" % (out, size))
     if size >= 1024 * 1024:

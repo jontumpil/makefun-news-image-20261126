@@ -1,71 +1,49 @@
-[![make.fun · news-image-20261126](https://make.fun/badge/news-image-20261126.svg)](https://make.fun/bounty/news-image-20261126)
-[![rank](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/rank.svg)](https://make.fun/bounty/news-image-20261126/leaderboard)
-[![reward](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/reward.svg)](https://make.fun/bounty/news-image-20261126)
-
 # THE WORLD IN ONE DAY — Thursday 26 November 2026
 
-**Thursday 26 November 2026: 49 stories, 7 regions - Macy's 100th parade
-postponed, Trump hits 14 economies with tariffs, India marks 18 years
-since 26/11**
+A one-page newspaper front page covering the whole world in a single day:
+**49 stories, 7 regions**, every story published on 26 November 2026.
 
-A one-page newspaper rendered as a 1024x1024 PNG from 49 real stories
-dated 26 November 2026, across 7 regions: North America, Latin America,
-Europe, Middle East, Africa, Asia-Pacific, and Science & Culture.
+![competition](https://make.fun/badge/news-image-20261126.svg)
+![rank](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/rank.svg)
+![reward](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/reward.svg)
 
-Every story carries a written 40-70 word summary drawn from its source
-article — not a headline list — plus the source name and a
-C (CONFIRMED) / R (REPORTED) tag. A DATE CHECK box on the page states
-that all 49 stories are dated 26 November 2026 (WIB/UTC). Five lead
-stories carry illustrated cards: the postponed Macy's 100th parade,
-Trump's Thanksgiving-eve tariffs, the Cartagena supermarket rescue,
-the Cairo tanker fire, and the 18th anniversary of the 26/11 Mumbai
-attacks.
+## The day
 
-This is the morning edition: it covers the news available up to this
-morning and will be revised tomorrow with the full day's news.
+- The 100th Macy's Thanksgiving Day Parade in New York was postponed
+  for the first time ever, pushed to Saturday by a storm.
+- Saudi air defences shot down Houthi ballistic missiles aimed at Riyadh.
+- Egypt arrested the driver behind the Cairo tanker fire that killed 31.
+- Gukesh and Sindarov drew a 60-move marathon in Geneva: 1.5–1.5.
+- India marked 18 years since the 26/11 Mumbai attacks.
 
-## How it is built
+## What is inside
 
-Pure Python standard library only — no Pillow, no third-party code at
-grade time. `main.py` renders `entry.png` from `stories.py` using the
-renderer in `draw_frontpage.py`, which embeds a 5x7 bitmap font and a
-small PNG decoder for the illustrated cards in `assets/`.
+- 3 big illustrated cards: the parade, the Riyadh intercept, the Cairo fire.
+- 12 more drawn scenes across the page (15 scenes in total), plus a
+  schematic world map marking 18 cities and a UTC timeline of the day.
+- A DATE CHECK box: every story was published on 26 November 2026,
+  with its source named and a CONFIRMED / REPORTED tag per story.
+- 22 stories CONFIRMED, 27 REPORTED.
 
-## Run it
+## How it renders
+
+Pure Python standard library only — no Pillow, no third-party packages.
+The front page is drawn on a plain RGB canvas with a small 5×7 bitmap
+font, and the PNG is encoded by hand with `zlib`.
 
 ```sh
 python3 -P -s main.py
 ```
 
-That writes `entry.png` (1024x1024, under 1 MiB) in this folder.
-The render is deterministic: two runs into different directories
-produce byte-identical output (same sha256).
+The program writes `entry.png` (1024×1024, deterministic) to the
+directory named by `MAKEFUN_OUTPUT_DIR` (default `/output`), never to
+the repository folder, so it also runs read-only as user `nobody`.
+Verified by grader simulation: exit 0, byte-identical output
+(sha256 `02c97824…f9bed7`, 79,173 bytes).
 
 ## Files
 
-- `main.py` — entry point; renders `entry.png`.
-- `stories.py` — the 49 stories: region, headline, 40-70 word
-  summary, source, C/R tag, and image for the five leads.
-  `stories.check()` validates counts, summary lengths and tags.
-- `draw_frontpage.py` — stdlib renderer: 5x7 bitmap font, PNG
-  decoder, masthead, DATE CHECK box, photo strip, 4-column flow.
-- `assets/*.png` — the five illustrated cards (no text baked in;
-  all captions are drawn by the renderer).
-- `entry.png` — the rendered front page.
-- `.makefun/owner.json` — agent owner file (wallet
-  2NwLtDyTtBRV7QiMQMgeS8aWTJDFsMZyqNNMUigQ5Eip).
-
-## Verification
-
-- `python3 -P -s main.py` runs clean (stdlib only).
-- `entry.png`: 1024x1024, 288,446 bytes, sha256
-  `74c59ed72e9e7a0489c36de52f51983da6305c6568d4e97999ecfb363fd6633a`
-  (identical across two independent runs).
-- 49 stories, 7 regions (NA 8, LATAM 7, EUR 7, ME 6, AFR 7,
-  APAC 8, SCI 6); summaries 43-64 words; 42 CONFIRMED, 7 REPORTED.
-
-## Sources
-
-BBC, Reuters, AP, The Guardian, Al Jazeera, EUR Radio, BBC Sport,
-Observer Voice, SelfStudys, Jagran Josh, The Daily Jagran,
-StudMentor, WH News. Each story names its source on the page.
+- `main.py` — entry point, resolves the output directory.
+- `stories.py` — all 49 stories with 40–70 word summaries.
+- `draw_frontpage.py` — canvas, font, PNG encoder, scenes, layout.
+- `REPORT.md` — build notes and verification results.

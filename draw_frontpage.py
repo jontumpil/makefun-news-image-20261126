@@ -600,7 +600,8 @@ CONTINENTS = [
 def draw_map(c, x, y, w, h, dots):
     c.fill_rect(x, y, w, h, (196, 222, 238))
     c.rect(x, y, w, h, INK)
-    draw_text(c, x + 6, y + 4, "WORLD MAP - 18 CITIES IN TODAY'S NEWS", 1, INK)
+    draw_text(c, x + 6, y + 4,
+              "WORLD MAP - %d CITIES IN TODAY'S NEWS" % len(dots), 1, INK)
     top = y + 16
     mh = h - 22
     for poly in CONTINENTS:
@@ -627,8 +628,8 @@ def draw_timeline(c, x, y, w, h, events):
 
 # ---- Front page layout ---------------------------------------------------
 
-GRID_TOP = 368
-GRID_H = 628
+GRID_TOP = 352
+GRID_H = 652
 COL_W = 193
 COL_XS = [12, 213, 414, 615, 816]
 BIG_SCENES = ["parade", "missile", "fire"]
@@ -652,55 +653,68 @@ MEDIUM_SCENES = ["rescue", "chess"]
 def _block_height(story, thumb):
     hl = _fit_lines(story["headline"], 1, COL_W - 4, 2)
     if thumb:
-        scene_h = 56 if story["scene"] in MEDIUM_SCENES else 26
+        scene_h = 48 if story["scene"] in MEDIUM_SCENES else 24
         sl = _fit_lines(story["summary"], 1, COL_W - 4, 2)
-        return (scene_h + 3 + len(hl) * 8 + len(sl) * 8 + 8 + 4,
+        return (scene_h + 2 + len(hl) * 8 + len(sl) * 8 + 6 + 4,
                 hl, sl, scene_h)
     sl = _fit_lines(story["summary"], 1, COL_W - 4, 3)
-    return len(hl) * 8 + len(sl) * 8 + 8 + 4, hl, sl, 0
+    return len(hl) * 8 + len(sl) * 8 + 6 + 4, hl, sl, 0
+
+
+def _fill_with_limit(blocks, limit):
+    """Greedy fill of the five columns under a height limit.
+    Returns (cols, heights) or None when the stories cannot be
+    packed under the limit. Region order is kept; a region that
+    continues into a new column repeats its header there."""
+    cols = [[] for _ in range(5)]
+    heights = [0] * 5
+    col = 0
+    prev_region = None
+    for story, thumb, bh, hl, sl, scene_h in blocks:
+        need = bh if prev_region == story["region"] else bh + 11
+        if heights[col] > 0 and heights[col] + need > limit:
+            col += 1
+            if col > 4:
+                return None
+            prev_region = None
+            need = bh + 11
+        if prev_region != story["region"]:
+            cols[col].append(("REGION", story["region"]))
+            heights[col] += 11
+            prev_region = story["region"]
+        cols[col].append(("STORY", story, thumb, bh, hl, sl, scene_h))
+        heights[col] += bh
+    if max(heights) > limit:
+        return None
+    return cols, heights
 
 
 def _flow_columns(stories):
-    """Greedy flow of stories into five columns, region order kept.
-    Columns are balanced against a target height so no column is
-    left mostly empty; GRID_H is the hard ceiling. Advancing early
-    is allowed only when the remaining stories still fit in the
-    columns that are left."""
+    """Pack stories into five columns, region order kept. A binary
+    search finds the smallest column-height limit that packs every
+    story, so the columns end up as even as the blocks allow;
+    GRID_H is the hard ceiling."""
     blocks = []
     for story in stories:
         thumb = bool(story["scene"]) and story["scene"] not in BIG_SCENES
         bh, hl, sl, scene_h = _block_height(story, thumb)
         blocks.append((story, thumb, bh, hl, sl, scene_h))
-    total = sum(b[2] for b in blocks) + 11 * 7
-    target = total // 5 + 8
-    suffix = [0] * (len(blocks) + 1)
-    for i in range(len(blocks) - 1, -1, -1):
-        suffix[i] = suffix[i + 1] + blocks[i][2]
-    cols = [[] for _ in range(5)]
-    heights = [0] * 5
-    col = 0
-    prev_region = [None] * 5
-    for idx, (story, thumb, bh, hl, sl, scene_h) in enumerate(blocks):
-        need = bh
-        if prev_region[col] != story["region"]:
-            need += 11
-        if col < 4 and heights[col] + need > target:
-            remaining = suffix[idx] + 11 * 11
-            if remaining <= (4 - col) * GRID_H:
-                col += 1
-                need = bh + 11
-        if heights[col] + need > GRID_H:
-            if col >= 4:
-                raise AssertionError("story does not fit: " + story["headline"])
-            col += 1
-            need = bh + 11
-        if prev_region[col] != story["region"]:
-            cols[col].append(("REGION", story["region"]))
-            heights[col] += 11
-            prev_region[col] = story["region"]
-        cols[col].append(("STORY", story, thumb, bh, hl, sl, scene_h))
-        heights[col] += bh
-    return cols, heights
+    total = sum(b[2] for b in blocks) + 11 * len({s["region"]
+                                                  for s in stories})
+    lo = max(1, total // 5)
+    hi = GRID_H
+    best = None
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        got = _fill_with_limit(blocks, mid)
+        if got is not None:
+            best = got
+            hi = mid - 1
+        else:
+            lo = mid + 1
+    if best is None:
+        raise AssertionError("stories do not fit the grid")
+    return best
 
 
 def render_frontpage(mod):
@@ -711,13 +725,15 @@ def render_frontpage(mod):
     title = "THE WORLD IN ONE DAY"
     tx = (W - text_width(title, 4)) // 2
     draw_text(c, tx, 16, title, 4, INK)
-    sub = ("THURSDAY 26 NOVEMBER 2026  |  49 STORIES  |  7 REGIONS  |  "
-           "%d CONFIRMED - %d REPORTED" % (confirmed, reported))
+    sub = ("THURSDAY 26 NOVEMBER 2026  |  %d STORIES  |  %d REGIONS  |  "
+           "%d CONFIRMED - %d REPORTED"
+           % (mod.STORY_COUNT, mod.REGION_COUNT, confirmed, reported))
     draw_text(c, (W - text_width(sub, 1)) // 2, 50, sub, 1, RED)
     c.fill_rect(12, 64, W - 24, 30, (255, 255, 255))
     c.rect(12, 64, W - 24, 30, INK)
-    check = ("DATE CHECK: EVERY STORY IN THIS EDITION WAS PUBLISHED ON "
-             "26 NOVEMBER 2026. SOURCES ARE NAMED PER STORY.")
+    check = ("DATE CHECK: ALL STORIES PUBLISHED ON 26 NOV 2026 BY THE "
+             "SOURCE NAMED UNDER EACH HEADLINE. CONFIRMED = 2+ OUTLETS "
+             "OR OFFICIAL; REPORTED = SINGLE SOURCE.")
     draw_text(c, (W - text_width(check, 1)) // 2, 74, check, 1, INK)
     # --- three big illustrated cards ---
     big = [s for s in mod.STORIES if s["scene"] in BIG_SCENES]
@@ -726,7 +742,7 @@ def render_frontpage(mod):
         bx = 12 + k * 340
         bw = 320
         by = 102
-        bh = 144
+        bh = 138
         c.fill_rect(bx, by, bw, bh, (255, 255, 255))
         c.rect(bx, by, bw, bh, INK)
         draw_scene(c, story["scene"], bx + 4, by + 4, bw - 8, 96)
@@ -738,8 +754,8 @@ def render_frontpage(mod):
         meta = story["source"] + " - " + story["tag"]
         draw_text(c, bx + 6, by + bh - 12, meta, 1, RED)
     # --- world map + UTC timeline ---
-    draw_map(c, 12, 254, 600, 106, mod.MAP_DOTS)
-    draw_timeline(c, 620, 254, 392, 106, mod.TIMELINE)
+    draw_map(c, 12, 244, 600, 106, mod.MAP_DOTS)
+    draw_timeline(c, 620, 244, 392, 106, mod.TIMELINE)
     # --- story columns ---
     cols, heights = _flow_columns(mod.STORIES)
     for ci, items in enumerate(cols):
@@ -754,12 +770,12 @@ def render_frontpage(mod):
             _tag, story, thumb, bh, hl, sl, scene_h = item
             start_y = y
             if thumb:
-                if scene_h == 56:
+                if scene_h == 48:
                     draw_scene(c, story["scene"], x, y, COL_W, scene_h)
                 else:
                     draw_scene_mini(c, story["scene"], x, y, COL_W,
                                     scene_h)
-                y += scene_h + 3
+                y += scene_h + 2
             yy = y
             for line in hl:
                 draw_text(c, x, yy, line, 1, INK)
@@ -780,7 +796,7 @@ def render_frontpage(mod):
     # --- footer ---
     foot = ("THE WORLD IN ONE DAY - MAKE.FUN NEWS-IMAGE-20261126 - "
             "ALL STORIES DATED 26 NOVEMBER 2026")
-    draw_text(c, (W - text_width(foot, 1)) // 2, 1004, foot, 1, GREY)
+    draw_text(c, (W - text_width(foot, 1)) // 2, 1008, foot, 1, GREY)
     return encode_png(c), {
         "confirmed": confirmed,
         "reported": reported,

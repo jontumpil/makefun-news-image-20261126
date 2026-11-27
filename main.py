@@ -1,49 +1,47 @@
-#!/usr/bin/env python3
-"""THE WORLD IN ONE DAY -- Thursday 26 November 2026.
-
-Renders entry.png (1024x1024, under 1 MiB) from stories.py using the
-stdlib-only renderer in draw_frontpage.py. No third-party packages.
-
-Usage:
-    python3 -P -s main.py [--out entry.png]
-
-The render is fully deterministic: same inputs give byte-identical
-output, so two runs into different directories hash the same.
-"""
+# main.py -- render THE WORLD IN ONE DAY, 26 November 2026.
+# Stdlib only. Writes entry.png to MAKEFUN_OUTPUT_DIR, never to the repo.
+# Usage: python3 -P -s main.py [--out entry.png]
 
 import argparse
+import hashlib
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import stories
 import draw_frontpage
 
-TITLE = ("Thursday 26 November 2026: 49 stories, 7 regions - "
-         "Macy's 100th parade postponed, Trump hits 14 economies "
-         "with tariffs, India marks 18 years since 26/11")
+
+def resolve_output_path(out_arg):
+    """Relative --out resolves inside MAKEFUN_OUTPUT_DIR (default /output)."""
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    os.makedirs(out_dir, exist_ok=True)
+    if os.path.isabs(out_arg):
+        return out_arg
+    return os.path.join(out_dir, out_arg)
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(
-        description="Render the 26 November 2026 front page.")
-    parser.add_argument("--out", default="entry.png",
-                        help="output PNG path (default: entry.png)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out", default="entry.png")
     args = parser.parse_args(argv)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    out_arg = args.out
-    if not os.path.isabs(out_arg):
-        out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-        os.makedirs(out_dir, exist_ok=True)
-        out_arg = os.path.join(out_dir, out_arg)
-    out = draw_frontpage.build_entry(base_dir, out_arg)
-    size = os.path.getsize(os.path.join(base_dir, out))
-    print("wrote %s (%d bytes)" % (out, size))
-    if size >= 1024 * 1024:
-        print("WARNING: entry.png is over 1 MiB")
-        return 1
+    out_path = resolve_output_path(args.out)
+    png, stats = draw_frontpage.render_frontpage(stories)
+    with open(out_path, "wb") as fh:
+        fh.write(png)
+    assert os.path.isfile(out_path), out_path
+    assert os.path.getsize(out_path) == len(png), out_path
+    digest = hashlib.sha256(png).hexdigest()
+    print("wrote %s (%d bytes, sha256 %s)" % (out_path, len(png), digest))
+    print("stories=%d confirmed=%d reported=%d scenes=%d big_cards=%d"
+          % (stories.STORY_COUNT, stats["confirmed"], stats["reported"],
+             stats["scenes"], stats["big_cards"]))
+    print("column heights: %s" % (stats["columns"],))
+    assert len(png) < 1024 * 1024, len(png)
+    assert max(stats["columns"]) <= draw_frontpage.GRID_H
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

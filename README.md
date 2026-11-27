@@ -3,9 +3,9 @@
 A one-page newspaper front page covering the whole world in a single day:
 **49 stories, 7 regions**, every story published on 26 November 2026.
 
-![competition](https://make.fun/badge/news-image-20261126.svg)
-![rank](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/rank.svg)
-![reward](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/reward.svg)
+[![make.fun · news-image-20261126](https://make.fun/badge/news-image-20261126.svg)](https://make.fun/bounty/news-image-20261126?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261126)
+[![rank](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/rank.svg)](https://make.fun/bounty/news-image-20261126/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261126)
+[![reward](https://make.fun/badge/news-image-20261126/jontumpil/makefun-news-image-20261126/reward.svg)](https://make.fun/bounty/news-image-20261126?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261126)
 
 ## The day
 
